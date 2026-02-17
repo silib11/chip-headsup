@@ -90,9 +90,10 @@
                     <div class="player-actions">
                         <input type="number" id="betAmountA" placeholder="額" style="width: 80px;">
                         <button onclick="action('A', 'fold')" class="btn-danger">フォールド</button>
-                        <button onclick="action('A', 'check')">チェック</button>
-                        <button onclick="action('A', 'bet')">ベット</button>
-                        <button onclick="action('A', 'raise')">レイズ</button>
+                        <button onclick="action('A', 'check')" id="checkA">チェック</button>
+                        <button onclick="action('A', 'call')" id="callA">コール</button>
+                        <button onclick="action('A', 'bet')" id="betA">ベット</button>
+                        <button onclick="action('A', 'raise')" id="raiseA">レイズ</button>
                         <button onclick="action('A', 'allin')" class="btn-warning">オールイン</button>
                     </div>
                 </div>
@@ -103,9 +104,10 @@
                     <div class="player-actions">
                         <input type="number" id="betAmountB" placeholder="額" style="width: 80px;">
                         <button onclick="action('B', 'fold')" class="btn-danger">フォールド</button>
-                        <button onclick="action('B', 'check')">チェック</button>
-                        <button onclick="action('B', 'bet')">ベット</button>
-                        <button onclick="action('B', 'raise')">レイズ</button>
+                        <button onclick="action('B', 'check')" id="checkB">チェック</button>
+                        <button onclick="action('B', 'call')" id="callB">コール</button>
+                        <button onclick="action('B', 'bet')" id="betB">ベット</button>
+                        <button onclick="action('B', 'raise')" id="raiseB">レイズ</button>
                         <button onclick="action('B', 'allin')" class="btn-warning">オールイン</button>
                     </div>
                 </div>
@@ -187,7 +189,21 @@
             }
             
             if (type === 'check') {
-                if (bet < opponentBet) return; // チェックできない
+                if (bet < opponentBet) return;
+                state.actionTaken[player] = true;
+            } else if (type === 'call') {
+                const toCall = opponentBet - bet;
+                if (toCall <= 0) return;
+                const actualCall = Math.min(toCall, chips);
+                if (player === 'A') {
+                    state.chipsA -= actualCall;
+                    state.betA += actualCall;
+                    if (state.chipsA === 0) state.allIn = true;
+                } else {
+                    state.chipsB -= actualCall;
+                    state.betB += actualCall;
+                    if (state.chipsB === 0) state.allIn = true;
+                }
                 state.actionTaken[player] = true;
             } else if (type === 'bet') {
                 if (amount <= 0 || opponentBet > 0) return;
@@ -204,10 +220,10 @@
                 state.actionTaken[player] = true;
                 state.actionTaken[player === 'A' ? 'B' : 'A'] = false;
             } else if (type === 'raise') {
-                if (amount <= 0 || bet >= opponentBet) return;
-                const toCall = opponentBet - bet;
+                const minRaise = opponentBet * 2 - bet;
+                if (amount < minRaise || amount <= 0) return;
                 const actualBet = Math.min(amount, chips);
-                if (actualBet <= toCall) return;
+                if (actualBet < minRaise) return;
                 if (player === 'A') {
                     state.chipsA -= actualBet;
                     state.betA += actualBet;
@@ -302,6 +318,10 @@
             document.getElementById('playerA').classList.toggle('disabled', state.currentPlayer !== 'A');
             document.getElementById('playerB').classList.toggle('disabled', state.currentPlayer !== 'B');
             
+            // ボタンの表示制御
+            updateButtonStates('A');
+            updateButtonStates('B');
+            
             // 次のフェーズボタンの有効化
             const betsEqual = state.betA === state.betB;
             const bothActed = state.actionTaken.A && state.actionTaken.B;
@@ -310,6 +330,22 @@
             // ショウダウンボタンの表示
             const showShowdown = state.allIn && betsEqual && (state.chipsA === 0 || state.chipsB === 0);
             document.getElementById('showdownBtn').style.display = showShowdown ? 'inline-block' : 'none';
+        }
+
+        function updateButtonStates(player) {
+            const bet = player === 'A' ? state.betA : state.betB;
+            const opponentBet = player === 'A' ? state.betB : state.betA;
+            const chips = player === 'A' ? state.chipsA : state.chipsB;
+            
+            const canCheck = bet >= opponentBet;
+            const canCall = bet < opponentBet && chips > 0;
+            const canBet = opponentBet === 0 && bet === 0;
+            const canRaise = bet < opponentBet && chips > 0;
+            
+            document.getElementById('check' + player).style.display = canCheck ? 'inline-block' : 'none';
+            document.getElementById('call' + player).style.display = canCall ? 'inline-block' : 'none';
+            document.getElementById('bet' + player).style.display = canBet ? 'inline-block' : 'none';
+            document.getElementById('raise' + player).style.display = canRaise ? 'inline-block' : 'none';
         }
     </script>
 </body>
