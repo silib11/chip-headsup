@@ -89,7 +89,7 @@
                 <div class="player" id="playerA">
                     <h2>プレイヤーA <span id="posA"></span></h2>
                     <div class="chips" id="chipsDisplayA">1000</div>
-                    <div>ベット: <span id="betA">0</span></div>
+                    <div style="margin: 10px 0;">ベット: <span id="betA">0</span></div>
                     <div class="player-actions">
                         <input type="number" id="betAmountA" placeholder="額" style="width: 80px;">
                         <button onclick="action('A', 'fold')" class="btn-danger">フォールド</button>
@@ -103,7 +103,7 @@
                 <div class="player" id="playerB">
                     <h2>プレイヤーB <span id="posB"></span></h2>
                     <div class="chips" id="chipsDisplayB">1000</div>
-                    <div>ベット: <span id="betB">0</span></div>
+                    <div style="margin: 10px 0;">ベット: <span id="betB">0</span></div>
                     <div class="player-actions">
                         <input type="number" id="betAmountB" placeholder="額" style="width: 80px;">
                         <button onclick="action('B', 'fold')" class="btn-danger">フォールド</button>
@@ -167,14 +167,14 @@
                 state.chipsB -= state.bb + state.ante;
                 state.betB = state.bb;
                 state.pot = state.ante;
-                state.currentPlayer = 'A'; // BTN/SBが先
+                state.currentPlayer = 'A'; // SB(BTN)が先
             } else {
                 state.chipsB -= state.sb;
                 state.betB = state.sb;
                 state.chipsA -= state.bb + state.ante;
                 state.betA = state.bb;
                 state.pot = state.ante;
-                state.currentPlayer = 'B'; // BTN/SBが先
+                state.currentPlayer = 'B'; // SB(BTN)が先
             }
             state.pot += state.sb + state.bb;
             
@@ -282,7 +282,7 @@
             state.betB = 0;
             state.phase++;
             state.actionTaken = { A: false, B: false };
-            state.currentPlayer = state.btnPlayer === 'A' ? 'B' : 'A'; // BBが先
+            state.currentPlayer = state.btnPlayer; // SB(BTN)が先
             
             if (state.phase > 3) {
                 showdown();
