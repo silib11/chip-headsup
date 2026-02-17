@@ -25,6 +25,10 @@
         .chips { font-size: 32px; font-weight: bold; color: #4CAF50; margin: 10px 0; }
         .phase { text-align: center; font-size: 24px; margin-bottom: 20px; color: #ff9800; }
         .actions { text-align: center; }
+        .player-actions { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 5px; }
+        .player-actions button { padding: 8px 12px; font-size: 14px; flex: 1; min-width: 80px; }
+        .player-actions input { padding: 8px; }
+        .player.disabled { opacity: 0.5; pointer-events: none; }
         .bet-input { display: flex; gap: 10px; margin-bottom: 15px; }
         .bet-input input { flex: 1; }
         .blinds { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
@@ -79,28 +83,37 @@
             <div class="phase" id="phase">プリフロップ</div>
 
             <div class="players">
-                <div class="player">
+                <div class="player" id="playerA">
                     <h2>プレイヤーA <span id="posA"></span></h2>
                     <div class="chips" id="chipsDisplayA">1000</div>
                     <div>ベット: <span id="betA">0</span></div>
+                    <div class="player-actions">
+                        <input type="number" id="betAmountA" placeholder="額" style="width: 80px;">
+                        <button onclick="action('A', 'fold')" class="btn-danger">フォールド</button>
+                        <button onclick="action('A', 'check')">チェック</button>
+                        <button onclick="action('A', 'bet')">ベット</button>
+                        <button onclick="action('A', 'raise')">レイズ</button>
+                        <button onclick="action('A', 'allin')" class="btn-warning">オールイン</button>
+                    </div>
                 </div>
-                <div class="player">
+                <div class="player" id="playerB">
                     <h2>プレイヤーB <span id="posB"></span></h2>
                     <div class="chips" id="chipsDisplayB">1000</div>
                     <div>ベット: <span id="betB">0</span></div>
+                    <div class="player-actions">
+                        <input type="number" id="betAmountB" placeholder="額" style="width: 80px;">
+                        <button onclick="action('B', 'fold')" class="btn-danger">フォールド</button>
+                        <button onclick="action('B', 'check')">チェック</button>
+                        <button onclick="action('B', 'bet')">ベット</button>
+                        <button onclick="action('B', 'raise')">レイズ</button>
+                        <button onclick="action('B', 'allin')" class="btn-warning">オールイン</button>
+                    </div>
                 </div>
             </div>
 
             <div class="actions">
-                <div class="bet-input">
-                    <input type="number" id="betAmount" placeholder="ベット額">
-                    <button onclick="bet('A')">A ベット</button>
-                    <button onclick="bet('B')">B ベット</button>
-                </div>
-                <button class="btn-secondary" onclick="nextPhase()">次のフェーズ</button>
-                <button class="btn-warning" onclick="showdown()">ショウダウン</button>
-                <button class="btn-danger" onclick="fold('A')">A フォールド</button>
-                <button class="btn-danger" onclick="fold('B')">B フォールド</button>
+                <button class="btn-secondary" id="nextPhaseBtn" onclick="nextPhase()" disabled>次のフェーズ</button>
+                <button class="btn-warning" id="showdownBtn" onclick="showdown()" style="display:none;">ショウダウン</button>
                 <button onclick="newHand()">新しいハンド</button>
             </div>
         </div>
@@ -111,7 +124,8 @@
             chipsA: 0, chipsB: 0, sb: 0, bb: 0, ante: 0,
             betA: 0, betB: 0, pot: 0,
             phase: 0, btnPlayer: 'A',
-            allIn: false
+            allIn: false, currentPlayer: 'A',
+            actionTaken: { A: false, B: false }
         };
 
         function startGame() {
@@ -134,6 +148,7 @@
             state.pot = 0;
             state.phase = 0;
             state.allIn = false;
+            state.actionTaken = { A: false, B: false };
             state.btnPlayer = state.btnPlayer === 'A' ? 'B' : 'A';
             
             // ブラインド徴収
@@ -143,35 +158,81 @@
                 state.chipsB -= state.bb + state.ante;
                 state.betB = state.bb;
                 state.pot = state.ante;
+                state.currentPlayer = 'A'; // BTN/SBが先
             } else {
                 state.chipsB -= state.sb;
                 state.betB = state.sb;
                 state.chipsA -= state.bb + state.ante;
                 state.betA = state.bb;
                 state.pot = state.ante;
+                state.currentPlayer = 'B'; // BTN/SBが先
             }
             state.pot += state.sb + state.bb;
             
             updateDisplay();
         }
 
-        function bet(player) {
-            const amount = parseInt(document.getElementById('betAmount').value);
-            if (!amount || amount <= 0) return;
+        function action(player, type) {
+            if (player !== state.currentPlayer) return;
             
-            if (player === 'A') {
-                const actualBet = Math.min(amount, state.chipsA);
-                state.chipsA -= actualBet;
-                state.betA += actualBet;
-                if (state.chipsA === 0) state.allIn = true;
-            } else {
-                const actualBet = Math.min(amount, state.chipsB);
-                state.chipsB -= actualBet;
-                state.betB += actualBet;
-                if (state.chipsB === 0) state.allIn = true;
+            const inputId = 'betAmount' + player;
+            const amount = parseInt(document.getElementById(inputId).value) || 0;
+            const chips = player === 'A' ? state.chipsA : state.chipsB;
+            const bet = player === 'A' ? state.betA : state.betB;
+            const opponentBet = player === 'A' ? state.betB : state.betA;
+            
+            if (type === 'fold') {
+                fold(player);
+                return;
             }
             
-            document.getElementById('betAmount').value = '';
+            if (type === 'check') {
+                if (bet < opponentBet) return; // チェックできない
+                state.actionTaken[player] = true;
+            } else if (type === 'bet') {
+                if (amount <= 0 || opponentBet > 0) return;
+                const actualBet = Math.min(amount, chips);
+                if (player === 'A') {
+                    state.chipsA -= actualBet;
+                    state.betA += actualBet;
+                    if (state.chipsA === 0) state.allIn = true;
+                } else {
+                    state.chipsB -= actualBet;
+                    state.betB += actualBet;
+                    if (state.chipsB === 0) state.allIn = true;
+                }
+                state.actionTaken[player] = true;
+                state.actionTaken[player === 'A' ? 'B' : 'A'] = false;
+            } else if (type === 'raise') {
+                if (amount <= 0 || bet >= opponentBet) return;
+                const toCall = opponentBet - bet;
+                const actualBet = Math.min(amount, chips);
+                if (actualBet <= toCall) return;
+                if (player === 'A') {
+                    state.chipsA -= actualBet;
+                    state.betA += actualBet;
+                    if (state.chipsA === 0) state.allIn = true;
+                } else {
+                    state.chipsB -= actualBet;
+                    state.betB += actualBet;
+                    if (state.chipsB === 0) state.allIn = true;
+                }
+                state.actionTaken[player] = true;
+                state.actionTaken[player === 'A' ? 'B' : 'A'] = false;
+            } else if (type === 'allin') {
+                if (player === 'A') {
+                    state.betA += state.chipsA;
+                    state.chipsA = 0;
+                } else {
+                    state.betB += state.chipsB;
+                    state.chipsB = 0;
+                }
+                state.allIn = true;
+                state.actionTaken[player] = true;
+            }
+            
+            document.getElementById(inputId).value = '';
+            state.currentPlayer = player === 'A' ? 'B' : 'A';
             updateDisplay();
         }
 
@@ -180,6 +241,8 @@
             state.betA = 0;
             state.betB = 0;
             state.phase++;
+            state.actionTaken = { A: false, B: false };
+            state.currentPlayer = state.btnPlayer === 'A' ? 'B' : 'A'; // BBが先
             
             if (state.phase > 3) {
                 showdown();
@@ -235,14 +298,18 @@
             document.getElementById('posA').textContent = state.btnPlayer === 'A' ? '(BTN/SB)' : '(BB)';
             document.getElementById('posB').textContent = state.btnPlayer === 'B' ? '(BTN/SB)' : '(BB)';
             
-            // オールイン時にショウダウンボタンを強調
-            if (state.allIn && state.betA > 0 && state.betB > 0) {
-                document.querySelector('.btn-warning').style.background = '#ff5722';
-                document.querySelector('.btn-warning').style.fontSize = '20px';
-            } else {
-                document.querySelector('.btn-warning').style.background = '#ff9800';
-                document.querySelector('.btn-warning').style.fontSize = '16px';
-            }
+            // プレイヤーの有効化/無効化
+            document.getElementById('playerA').classList.toggle('disabled', state.currentPlayer !== 'A');
+            document.getElementById('playerB').classList.toggle('disabled', state.currentPlayer !== 'B');
+            
+            // 次のフェーズボタンの有効化
+            const betsEqual = state.betA === state.betB;
+            const bothActed = state.actionTaken.A && state.actionTaken.B;
+            document.getElementById('nextPhaseBtn').disabled = !(betsEqual && bothActed);
+            
+            // ショウダウンボタンの表示
+            const showShowdown = state.allIn && betsEqual && (state.chipsA === 0 || state.chipsB === 0);
+            document.getElementById('showdownBtn').style.display = showShowdown ? 'inline-block' : 'none';
         }
     </script>
 </body>
