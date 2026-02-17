@@ -34,6 +34,7 @@
         .blinds { background: #333; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
         .blinds-display { display: flex; gap: 20px; align-items: center; }
         .pot { text-align: center; font-size: 28px; margin-bottom: 20px; background: #333; padding: 15px; border-radius: 8px; }
+        .result { text-align: center; font-size: 32px; font-weight: bold; color: #4CAF50; background: #333; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         .hidden { display: none; }
     </style>
 </head>
@@ -80,6 +81,8 @@
                 ポット: <span id="pot">0</span>
             </div>
 
+            <div id="result" class="result hidden"></div>
+
             <div class="phase" id="phase">プリフロップ</div>
 
             <div class="players">
@@ -114,7 +117,7 @@
             </div>
 
             <div class="actions">
-                <button class="btn-secondary" id="nextPhaseBtn" onclick="nextPhase()" disabled>次のフェーズ</button>
+                <button class="btn-secondary" id="nextPhaseBtn" onclick="nextPhase()" style="display:none;">次のフェーズ</button>
                 <button class="btn-warning" id="showdownBtn" onclick="showdown()" style="display:none;">ショウダウン</button>
                 <button onclick="newHand()">新しいハンド</button>
             </div>
@@ -127,7 +130,8 @@
             betA: 0, betB: 0, pot: 0,
             phase: 0, btnPlayer: 'A',
             allIn: false, currentPlayer: 'A',
-            actionTaken: { A: false, B: false }
+            actionTaken: { A: false, B: false },
+            handOver: false
         };
 
         function startGame() {
@@ -151,7 +155,10 @@
             state.phase = 0;
             state.allIn = false;
             state.actionTaken = { A: false, B: false };
+            state.handOver = false;
             state.btnPlayer = state.btnPlayer === 'A' ? 'B' : 'A';
+            
+            document.getElementById('result').classList.add('hidden');
             
             // ブラインド徴収
             if (state.btnPlayer === 'A') {
@@ -175,7 +182,7 @@
         }
 
         function action(player, type) {
-            if (player !== state.currentPlayer) return;
+            if (player !== state.currentPlayer || state.handOver) return;
             
             const inputId = 'betAmount' + player;
             const amount = parseInt(document.getElementById(inputId).value) || 0;
@@ -250,6 +257,23 @@
             document.getElementById(inputId).value = '';
             state.currentPlayer = player === 'A' ? 'B' : 'A';
             updateDisplay();
+            
+            // 自動フェーズ進行チェック
+            checkAutoProgress();
+        }
+
+        function checkAutoProgress() {
+            const betsEqual = state.betA === state.betB;
+            const bothActed = state.actionTaken.A && state.actionTaken.B;
+            
+            if (betsEqual && bothActed) {
+                // オールインの場合はショウダウンへ
+                if (state.allIn && (state.chipsA === 0 || state.chipsB === 0)) {
+                    setTimeout(() => showdown(), 500);
+                } else {
+                    setTimeout(() => nextPhase(), 500);
+                }
+            }
         }
 
         function nextPhase() {
@@ -269,22 +293,45 @@
         }
 
         function showdown() {
+            state.handOver = true;
             const winner = prompt('勝者を入力 (A または B):');
+            const totalPot = state.pot + state.betA + state.betB;
+            
             if (winner === 'A' || winner === 'a') {
-                state.chipsA += state.pot + state.betA + state.betB;
+                state.chipsA += totalPot;
+                document.getElementById('result').textContent = `プレイヤーA の勝利！ +${totalPot} チップ`;
             } else if (winner === 'B' || winner === 'b') {
-                state.chipsB += state.pot + state.betA + state.betB;
+                state.chipsB += totalPot;
+                document.getElementById('result').textContent = `プレイヤーB の勝利！ +${totalPot} チップ`;
+            } else {
+                state.handOver = false;
+                return;
             }
-            newHand();
+            
+            document.getElementById('result').classList.remove('hidden');
+            state.pot = 0;
+            state.betA = 0;
+            state.betB = 0;
+            updateDisplay();
         }
 
         function fold(player) {
+            state.handOver = true;
+            const totalPot = state.pot + state.betA + state.betB;
+            
             if (player === 'A') {
-                state.chipsB += state.pot + state.betA + state.betB;
+                state.chipsB += totalPot;
+                document.getElementById('result').textContent = `プレイヤーB の勝利！ (A フォールド) +${totalPot} チップ`;
             } else {
-                state.chipsA += state.pot + state.betA + state.betB;
+                state.chipsA += totalPot;
+                document.getElementById('result').textContent = `プレイヤーA の勝利！ (B フォールド) +${totalPot} チップ`;
             }
-            newHand();
+            
+            document.getElementById('result').classList.remove('hidden');
+            state.pot = 0;
+            state.betA = 0;
+            state.betB = 0;
+            updateDisplay();
         }
 
         function changeBlinds() {
@@ -315,21 +362,20 @@
             document.getElementById('posB').textContent = state.btnPlayer === 'B' ? '(BTN/SB)' : '(BB)';
             
             // プレイヤーの有効化/無効化
-            document.getElementById('playerA').classList.toggle('disabled', state.currentPlayer !== 'A');
-            document.getElementById('playerB').classList.toggle('disabled', state.currentPlayer !== 'B');
+            const disableA = state.currentPlayer !== 'A' || state.handOver;
+            const disableB = state.currentPlayer !== 'B' || state.handOver;
+            document.getElementById('playerA').classList.toggle('disabled', disableA);
+            document.getElementById('playerB').classList.toggle('disabled', disableB);
             
             // ボタンの表示制御
-            updateButtonStates('A');
-            updateButtonStates('B');
+            if (!state.handOver) {
+                updateButtonStates('A');
+                updateButtonStates('B');
+            }
             
-            // 次のフェーズボタンの有効化
-            const betsEqual = state.betA === state.betB;
-            const bothActed = state.actionTaken.A && state.actionTaken.B;
-            document.getElementById('nextPhaseBtn').disabled = !(betsEqual && bothActed);
-            
-            // ショウダウンボタンの表示
-            const showShowdown = state.allIn && betsEqual && (state.chipsA === 0 || state.chipsB === 0);
-            document.getElementById('showdownBtn').style.display = showShowdown ? 'inline-block' : 'none';
+            // 次のフェーズ/ショウダウンボタンは非表示（自動進行）
+            document.getElementById('nextPhaseBtn').style.display = 'none';
+            document.getElementById('showdownBtn').style.display = 'none';
         }
 
         function updateButtonStates(player) {
