@@ -55,6 +55,10 @@
                 <label>ビッグブラインド (BB)</label>
                 <input type="number" id="bb" value="10">
             </div>
+            <div class="input-group">
+                <label>BBアンティ</label>
+                <input type="number" id="ante" value="0">
+            </div>
             <button onclick="startGame()">ゲーム開始</button>
         </div>
 
@@ -63,6 +67,7 @@
                 <div class="blinds-display">
                     <div>SB: <span id="sbDisplay"></span></div>
                     <div>BB: <span id="bbDisplay"></span></div>
+                    <div>アンティ: <span id="anteDisplay"></span></div>
                     <button class="btn-secondary" onclick="changeBlinds()">ブラインド変更</button>
                 </div>
             </div>
@@ -103,7 +108,7 @@
 
     <script>
         let state = {
-            chipsA: 0, chipsB: 0, sb: 0, bb: 0,
+            chipsA: 0, chipsB: 0, sb: 0, bb: 0, ante: 0,
             betA: 0, betB: 0, pot: 0,
             phase: 0, btnPlayer: 'A',
             allIn: false
@@ -114,6 +119,7 @@
             state.chipsB = parseInt(document.getElementById('chipsB').value);
             state.sb = parseInt(document.getElementById('sb').value);
             state.bb = parseInt(document.getElementById('bb').value);
+            state.ante = parseInt(document.getElementById('ante').value);
             
             document.getElementById('setup').classList.add('hidden');
             document.getElementById('game').classList.remove('hidden');
@@ -134,15 +140,17 @@
             if (state.btnPlayer === 'A') {
                 state.chipsA -= state.sb;
                 state.betA = state.sb;
-                state.chipsB -= state.bb;
+                state.chipsB -= state.bb + state.ante;
                 state.betB = state.bb;
+                state.pot = state.ante;
             } else {
                 state.chipsB -= state.sb;
                 state.betB = state.sb;
-                state.chipsA -= state.bb;
+                state.chipsA -= state.bb + state.ante;
                 state.betA = state.bb;
+                state.pot = state.ante;
             }
-            state.pot = state.sb + state.bb;
+            state.pot += state.sb + state.bb;
             
             updateDisplay();
         }
@@ -203,9 +211,11 @@
         function changeBlinds() {
             const newSB = parseInt(prompt('新しいSB:', state.sb));
             const newBB = parseInt(prompt('新しいBB:', state.bb));
-            if (newSB && newBB) {
+            const newAnte = parseInt(prompt('新しいアンティ:', state.ante));
+            if (newSB && newBB && newAnte >= 0) {
                 state.sb = newSB;
                 state.bb = newBB;
+                state.ante = newAnte;
                 updateDisplay();
             }
         }
@@ -220,6 +230,7 @@
             document.getElementById('pot').textContent = state.pot;
             document.getElementById('sbDisplay').textContent = state.sb;
             document.getElementById('bbDisplay').textContent = state.bb;
+            document.getElementById('anteDisplay').textContent = state.ante;
             
             document.getElementById('posA').textContent = state.btnPlayer === 'A' ? '(BTN/SB)' : '(BB)';
             document.getElementById('posB').textContent = state.btnPlayer === 'B' ? '(BTN/SB)' : '(BB)';
